@@ -460,6 +460,46 @@ function fail(error, context) {
   toast((context ? context + ': ' : '') + (error?.message || error), true);
 }
 
+/* ---------- Local mode (used until Supabase keys are added) ----------
+   Mimics the small part of the Supabase API this app uses, stored in localStorage. */
+function localClient() {
+  const KEY = 'ansal-money-local';
+  let db;
+  try { db = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { db = {}; }
+  TABLES.forEach(t => db[t] ||= []);
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
+  const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const from = t => {
+    let op = 'select', payload = null, filters = [], single = false;
+    const b = {
+      select() { return b; }, range() { return b; },
+      insert(r) { op = 'insert'; payload = r; return b; },
+      upsert(r) { op = 'upsert'; payload = r; return b; },
+      update(r) { op = 'update'; payload = r; return b; },
+      delete() { op = 'delete'; return b; },
+      eq(k, v) { filters.push(x => x[k] === v); return b; },
+      neq(k, v) { filters.push(x => x[k] !== v); return b; },
+      single() { single = true; return b; },
+      then(resolve) {
+        const match = x => filters.every(f => f(x));
+        let data = null;
+        if (op === 'select') data = db[t].map(x => ({ ...x }));
+        if (op === 'insert' || op === 'upsert') {
+          data = [].concat(payload).map(r => ({ id: uid(), created_at: new Date().toISOString(), ...r }));
+          data.forEach(r => { const i = db[t].findIndex(x => x.id === r.id); i >= 0 ? db[t][i] = r : db[t].push(r); });
+          data = data.map(x => ({ ...x }));
+        }
+        if (op === 'update') { db[t].filter(match).forEach(x => Object.assign(x, payload)); data = db[t].filter(match).map(x => ({ ...x })); }
+        if (op === 'delete') db[t] = db[t].filter(x => !match(x));
+        if (op !== 'select') save();
+        resolve({ data: single ? data[0] : data, error: null });
+      }
+    };
+    return b;
+  };
+  return { from, auth: { signOut() {} } };
+}
+
 /* ---------- Lookups ---------- */
 const accById = id => state.accounts.find(a => a.id === id);
 const catById = id => state.categories.find(c => c.id === id);
@@ -470,8 +510,10 @@ const netOf = i => round2(i.gross_amount - i.payg);
 /* ---------- Auth ---------- */
 async function init() {
   if (!/^https:\/\//.test(SUPABASE_URL) || SUPABASE_URL.includes('YOUR-PROJECT')) {
-    $('#auth').classList.remove('hidden');
-    $('#configWarn').classList.remove('hidden');
+    // Not connected to Supabase yet: run in local mode (no login, data saved in this browser)
+    sb = localClient();
+    $('#btnSignOut').classList.add('hidden');
+    start({ email: 'Local mode — data saved in this browser only' });
     return;
   }
   sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
