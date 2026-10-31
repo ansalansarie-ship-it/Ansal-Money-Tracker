@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#0b1220" />
+<meta name="theme-color" content="#06120d" />
 <title>Ansal Money Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -13,10 +13,10 @@
 
 <style>
   :root{
-    --bg:#0b1220; --surface:#121a2b; --surface-2:#18233a; --line:#25314b;
-    --text:#e7ecf5; --muted:#8b97ae; --faint:#5b6782;
-    --accent:#7dd3fc; --accent-2:#c4b5fd; --gold:#f3d38b;
-    --in:#34d399; --out:#fb7185;
+    --bg:#06120d; --surface:#0c1d16; --surface-2:#11281e; --line:#1d3a2c;
+    --text:#eef4ef; --muted:#93ab9d; --faint:#5f7a6b;
+    --accent:#d8b46a; --accent-2:#f1dfae; --gold:#6fcf97;
+    --in:#5ee39a; --out:#f28b82;
     --radius:16px; --nav-h:68px;
     --serif:'Instrument Serif', Georgia, serif;
     --sans:'Manrope', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -30,23 +30,24 @@
   .in{color:var(--in)} .out{color:var(--out)} .muted{color:var(--muted)}
   .wrap{max-width:760px;margin:0 auto;padding:0 18px}
   .hidden{display:none !important}
+  button:focus{outline:none} button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
   /* ---------- Top bar ---------- */
   .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;justify-content:flex-end;
     padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;pointer-events:none}
   .icon-btn{pointer-events:auto;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
-    background:rgba(18,26,43,.75);backdrop-filter:blur(10px);border:1px solid var(--line);transition:.2s}
+    background:rgba(12,29,22,.8);backdrop-filter:blur(10px);border:1px solid var(--line);transition:.2s}
   .icon-btn:hover{border-color:var(--accent)}
   .burger span{display:block;width:18px;height:2px;background:var(--text);border-radius:2px;margin:3px 0}
 
   /* ---------- Hero (top 30%) ---------- */
   .hero{height:30vh;min-height:210px;position:relative;display:flex;flex-direction:column;
     align-items:center;justify-content:center;text-align:center;overflow:hidden;
-    border-bottom:1px solid var(--line)}
+    border-bottom:1px solid rgba(216,180,106,.25)}
   .hero::before{content:"";position:absolute;inset:0;
     background:
-      radial-gradient(600px 220px at 20% 10%, rgba(125,211,252,.18), transparent 60%),
-      radial-gradient(500px 240px at 85% 90%, rgba(196,181,253,.16), transparent 60%),
+      radial-gradient(600px 220px at 20% 10%, rgba(216,180,106,.16), transparent 60%),
+      radial-gradient(500px 240px at 85% 90%, rgba(52,168,110,.22), transparent 60%),
       linear-gradient(transparent 0 0);
   }
   .hero::after{content:"";position:absolute;inset:0;opacity:.35;
@@ -55,7 +56,7 @@
   .hero > *{position:relative;z-index:1}
   .hero .eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
   .hero h1{font-family:var(--serif);font-weight:400;line-height:.95;font-size:clamp(52px,12vw,104px);
-    background:linear-gradient(100deg,#fff 0%,var(--accent) 35%,var(--accent-2) 65%,var(--gold) 100%);
+    background:linear-gradient(100deg,var(--accent-2) 0%,var(--accent) 30%,#fff7e0 50%,var(--accent) 70%,var(--gold) 100%);
     background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
     animation:shine 8s linear infinite}
   .hero h1 em{font-style:italic}
@@ -66,7 +67,7 @@
   .page-head{padding:calc(env(safe-area-inset-top) + 22px) 0 12px}
   .page-head h2{font-family:var(--serif);font-weight:400;font-size:38px;line-height:1}
   .page-head p{color:var(--muted);font-size:13px;margin-top:4px}
-  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .card{background:linear-gradient(180deg,rgba(216,180,106,.035),transparent 40%),var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:0 10px 30px -18px rgba(0,0,0,.7)}
   .stack{display:grid;gap:12px}
   .row{display:flex;gap:10px;align-items:center}
   .between{justify-content:space-between}
@@ -85,9 +86,9 @@
   .action .ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px}
   .action b{font-size:14px;font-weight:600}
   .action small{font-size:11px;color:var(--muted)}
-  .ico.exp{background:rgba(251,113,133,.14);color:var(--out)}
-  .ico.inc{background:rgba(52,211,153,.14);color:var(--in)}
-  .ico.bank{background:rgba(125,211,252,.14);color:var(--accent)}
+  .ico.exp{background:rgba(242,139,130,.14);color:var(--out)}
+  .ico.inc{background:rgba(94,227,154,.14);color:var(--in)}
+  .ico.bank{background:rgba(216,180,106,.14);color:var(--accent)}
 
   /* ---------- Forms ---------- */
   .field{display:grid;gap:6px}
@@ -99,13 +100,13 @@
   textarea{resize:vertical;min-height:64px}
   .btn{padding:11px 16px;border-radius:12px;font-weight:600;background:var(--surface-2);border:1px solid var(--line);transition:.15s}
   .btn:hover{border-color:var(--accent)}
-  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#0b1220;border:none}
-  .btn.danger{color:var(--out);border-color:rgba(251,113,133,.35)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#06120d;border:none}
+  .btn.danger{color:var(--out);border-color:rgba(242,139,130,.35)}
   .btn.sm{padding:7px 11px;font-size:13px;border-radius:10px}
   .btn.block{width:100%}
   .chips{display:flex;gap:8px;flex-wrap:wrap}
   .chip{padding:6px 12px;border-radius:999px;font-size:12px;background:var(--surface-2);border:1px solid var(--line)}
-  .chip.on{background:rgba(125,211,252,.15);border-color:var(--accent);color:var(--accent)}
+  .chip.on{background:rgba(216,180,106,.14);border-color:var(--accent);color:var(--accent)}
 
   /* ---------- Lists ---------- */
   .list{display:grid}
@@ -126,7 +127,7 @@
 
   /* ---------- Bottom nav ---------- */
   .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;height:calc(var(--nav-h) + env(safe-area-inset-bottom));
-    padding-bottom:env(safe-area-inset-bottom);background:rgba(11,18,32,.9);backdrop-filter:blur(14px);
+    padding-bottom:env(safe-area-inset-bottom);background:rgba(6,18,13,.92);backdrop-filter:blur(14px);
     border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center}
   .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted);
     padding:8px 0;font-weight:600;letter-spacing:.03em;transition:color .15s}
@@ -135,7 +136,7 @@
   .nav-btn.active::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--accent);margin-top:-1px}
 
   /* ---------- Drawer & dialogs ---------- */
-  .scrim{position:fixed;inset:0;background:rgba(3,7,15,.6);z-index:50;opacity:0;pointer-events:none;transition:.25s}
+  .scrim{position:fixed;inset:0;background:rgba(2,8,5,.6);z-index:50;opacity:0;pointer-events:none;transition:.25s}
   .scrim.open{opacity:1;pointer-events:auto}
   .drawer{position:fixed;top:0;right:0;bottom:0;width:min(320px,86vw);z-index:51;background:var(--surface);
     border-left:1px solid var(--line);transform:translateX(100%);transition:transform .28s ease;
@@ -149,7 +150,7 @@
 
   dialog{margin:auto;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--text);
     width:min(520px,94vw);max-height:90vh;padding:0}
-  dialog::backdrop{background:rgba(3,7,15,.7);backdrop-filter:blur(3px)}
+  dialog::backdrop{background:rgba(2,8,5,.7);backdrop-filter:blur(3px)}
   .dlg-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 6px}
   .dlg-head h3{font-family:var(--serif);font-weight:400;font-size:28px}
   .dlg-body{padding:12px 20px 20px;display:grid;gap:14px}
@@ -161,7 +162,7 @@
   .auth{min-height:100vh;display:grid;place-items:center;padding:20px}
   .auth .card{width:min(400px,100%);padding:24px}
   .auth h1{font-family:var(--serif);font-weight:400;font-size:42px;line-height:1;text-align:center;margin-bottom:4px;
-    background:linear-gradient(100deg,#fff,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+    background:linear-gradient(100deg,var(--accent-2),var(--accent),var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
 
   /* ---------- Toast ---------- */
   .toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 24px);transform:translateX(-50%) translateY(20px);
@@ -172,8 +173,8 @@
 
   .chart-box{position:relative;height:260px}
   .tally-result{padding:10px 12px;border-radius:12px;font-size:13px;font-weight:600}
-  .tally-result.ok{background:rgba(52,211,153,.12);color:var(--in)}
-  .tally-result.bad{background:rgba(251,113,133,.12);color:var(--out)}
+  .tally-result.ok{background:rgba(94,227,154,.12);color:var(--in)}
+  .tally-result.bad{background:rgba(242,139,130,.12);color:var(--out)}
   .acct-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px}
   .acct-row .full{grid-column:1/-1}
   .tabs{display:flex;background:var(--surface-2);border-radius:12px;padding:4px}
@@ -435,7 +436,7 @@ const DEFAULT_CATS = {
   expense: ['Groceries', 'Rent', 'Fuel & Transport', 'Utilities', 'Dining out', 'Shopping', 'Health', 'Entertainment', 'Subscriptions', 'Other'],
   income:  ['Salary', 'Casual wages', 'Interest', 'Other income']
 };
-const PALETTE = ['#7dd3fc','#c4b5fd','#f3d38b','#34d399','#fb7185','#fdba74','#67e8f9','#a5b4fc','#f9a8d4','#bef264','#94a3b8'];
+const PALETTE = ['#d8b46a','#5ee39a','#2f9e6e','#f1dfae','#86c5a4','#b8893b','#f28b82','#a7d7c5','#e9c98b','#4c7a63','#93ab9d'];
 
 let sb = null;
 let user = null;
@@ -836,8 +837,8 @@ function monthsBetween(from, to) {
 }
 
 /* ---------- Charts ---------- */
-Chart.defaults.color = '#8b97ae';
-Chart.defaults.borderColor = '#25314b';
+Chart.defaults.color = '#93ab9d';
+Chart.defaults.borderColor = '#1d3a2c';
 Chart.defaults.font.family = "'Manrope', system-ui, sans-serif";
 function drawChart(id, config) {
   charts[id]?.destroy();
@@ -867,7 +868,7 @@ function renderCashflow() {
     drawChart('cfChart', {
       type: 'bar',
       data: { labels: ['Inflow', 'Outflow', 'Net'], datasets: [{ data: [inflow, outflow, net],
-        backgroundColor: ['#34d399', '#fb7185', net >= 0 ? '#7dd3fc' : '#fdba74'], borderRadius: 10, maxBarThickness: 80 }] },
+        backgroundColor: ['#5ee39a', '#f28b82', net >= 0 ? '#d8b46a' : '#e9a15b'], borderRadius: 10, maxBarThickness: 80 }] },
       options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: moneyTooltip }, scales: { y: { ticks: moneyTicks } } }
     });
     return;
@@ -886,9 +887,9 @@ function renderCashflow() {
   drawChart('cfChart', {
     type: 'bar',
     data: { labels: rows.map(r => monthLabel(r.k)), datasets: [
-      { label: 'Inflow', data: rows.map(r => r.i), backgroundColor: '#34d399', borderRadius: 6 },
-      { label: 'Outflow', data: rows.map(r => r.o), backgroundColor: '#fb7185', borderRadius: 6 },
-      { label: 'Net', type: 'line', data: rows.map(r => r.n), borderColor: '#7dd3fc', backgroundColor: '#7dd3fc', tension: .3, pointRadius: 3 }
+      { label: 'Inflow', data: rows.map(r => r.i), backgroundColor: '#5ee39a', borderRadius: 6 },
+      { label: 'Outflow', data: rows.map(r => r.o), backgroundColor: '#f28b82', borderRadius: 6 },
+      { label: 'Net', type: 'line', data: rows.map(r => r.n), borderColor: '#d8b46a', backgroundColor: '#d8b46a', tension: .3, pointRadius: 3 }
     ] },
     options: { maintainAspectRatio: false, plugins: { tooltip: moneyTooltip, legend: { labels: { boxWidth: 10, boxHeight: 10 } } }, scales: { y: { ticks: moneyTicks } } }
   });
@@ -938,7 +939,7 @@ function renderAnalytics() {
 
   drawChart('anDonut', {
     type: 'doughnut',
-    data: { labels: cats.map(c => c[0]), datasets: [{ data: cats.map(c => round2(c[1])), backgroundColor: cats.map((_, i) => PALETTE[i % PALETTE.length]), borderColor: '#121a2b', borderWidth: 3 }] },
+    data: { labels: cats.map(c => c[0]), datasets: [{ data: cats.map(c => round2(c[1])), backgroundColor: cats.map((_, i) => PALETTE[i % PALETTE.length]), borderColor: '#0c1d16', borderWidth: 3 }] },
     options: { maintainAspectRatio: false, cutout: '64%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, boxHeight: 10 } },
       tooltip: { callbacks: { label: c => `${c.label}: ${fmt(c.parsed)} (${total ? Math.round(c.parsed / total * 100) : 0}%)` } } } }
   });
@@ -951,7 +952,7 @@ function renderAnalytics() {
   drawChart('anTrend', {
     type: 'line',
     data: { labels: months.map(monthLabel), datasets: [{ label: 'Spent', data: months.map(k => round2(sum(exps.filter(e => monthKey(e.date) === k), e => e.amount))),
-      borderColor: '#fb7185', backgroundColor: 'rgba(251,113,133,.15)', fill: true, tension: .35, pointRadius: 3 }] },
+      borderColor: '#f28b82', backgroundColor: 'rgba(242,139,130,.15)', fill: true, tension: .35, pointRadius: 3 }] },
     options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: moneyTooltip }, scales: { y: { ticks: moneyTicks, beginAtZero: true } } }
   });
 
@@ -960,7 +961,7 @@ function renderAnalytics() {
   const accs = Object.entries(byAcc).sort((a, b) => b[1] - a[1]);
   drawChart('anPay', {
     type: 'bar',
-    data: { labels: accs.map(a => a[0]), datasets: [{ label: 'Spent', data: accs.map(a => round2(a[1])), backgroundColor: '#c4b5fd', borderRadius: 8 }] },
+    data: { labels: accs.map(a => a[0]), datasets: [{ label: 'Spent', data: accs.map(a => round2(a[1])), backgroundColor: '#d8b46a', borderRadius: 8 }] },
     options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.parsed.x) } } }, scales: { x: { ticks: moneyTicks } } }
   });
 }
