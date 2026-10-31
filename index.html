@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1220" />
+<title>Ansal Money Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<style>
+  :root{
+    --bg:#0b1220; --surface:#121a2b; --surface-2:#18233a; --line:#25314b;
+    --text:#e7ecf5; --muted:#8b97ae; --faint:#5b6782;
+    --accent:#7dd3fc; --accent-2:#c4b5fd; --gold:#f3d38b;
+    --in:#34d399; --out:#fb7185;
+    --radius:16px; --nav-h:68px;
+    --serif:'Instrument Serif', Georgia, serif;
+    --sans:'Manrope', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.45}
+  body{min-height:100vh;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px)}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer;border:none;background:none}
+  .num{font-variant-numeric:tabular-nums}
+  .in{color:var(--in)} .out{color:var(--out)} .muted{color:var(--muted)}
+  .wrap{max-width:760px;margin:0 auto;padding:0 18px}
+  .hidden{display:none !important}
+
+  /* ---------- Top bar ---------- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;justify-content:flex-end;
+    padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;pointer-events:none}
+  .icon-btn{pointer-events:auto;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+    background:rgba(18,26,43,.75);backdrop-filter:blur(10px);border:1px solid var(--line);transition:.2s}
+  .icon-btn:hover{border-color:var(--accent)}
+  .burger span{display:block;width:18px;height:2px;background:var(--text);border-radius:2px;margin:3px 0}
+
+  /* ---------- Hero (top 30%) ---------- */
+  .hero{height:30vh;min-height:210px;position:relative;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;overflow:hidden;
+    border-bottom:1px solid var(--line)}
+  .hero::before{content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(600px 220px at 20% 10%, rgba(125,211,252,.18), transparent 60%),
+      radial-gradient(500px 240px at 85% 90%, rgba(196,181,253,.16), transparent 60%),
+      linear-gradient(transparent 0 0);
+  }
+  .hero::after{content:"";position:absolute;inset:0;opacity:.35;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:36px 36px;mask-image:radial-gradient(ellipse at center,#000 20%,transparent 75%)}
+  .hero > *{position:relative;z-index:1}
+  .hero .eyebrow{font-size:11px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .hero h1{font-family:var(--serif);font-weight:400;line-height:.95;font-size:clamp(52px,12vw,104px);
+    background:linear-gradient(100deg,#fff 0%,var(--accent) 35%,var(--accent-2) 65%,var(--gold) 100%);
+    background-size:200% auto;-webkit-background-clip:text;background-clip:text;color:transparent;
+    animation:shine 8s linear infinite}
+  .hero h1 em{font-style:italic}
+  .hero .sub{font-size:12px;letter-spacing:.5em;text-transform:uppercase;margin-top:10px;color:var(--text);opacity:.85}
+  @keyframes shine{to{background-position:200% center}}
+
+  /* ---------- Common blocks ---------- */
+  .page-head{padding:calc(env(safe-area-inset-top) + 22px) 0 12px}
+  .page-head h2{font-family:var(--serif);font-weight:400;font-size:38px;line-height:1}
+  .page-head p{color:var(--muted);font-size:13px;margin-top:4px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .stack{display:grid;gap:12px}
+  .row{display:flex;gap:10px;align-items:center}
+  .between{justify-content:space-between}
+  .label{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .big{font-size:24px;font-weight:700}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  @media (max-width:520px){.grid-3{grid-template-columns:1fr 1fr}.grid-3>.span-all{grid-column:1/-1}}
+  .section-title{font-size:13px;font-weight:600;color:var(--muted);margin:22px 0 10px;letter-spacing:.04em}
+
+  /* ---------- Home actions ---------- */
+  .actions{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:22px}
+  .action{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px 12px;
+    display:flex;flex-direction:column;align-items:center;gap:10px;transition:.2s;text-align:center}
+  .action:hover{transform:translateY(-2px);border-color:var(--accent)}
+  .action .ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px}
+  .action b{font-size:14px;font-weight:600}
+  .action small{font-size:11px;color:var(--muted)}
+  .ico.exp{background:rgba(251,113,133,.14);color:var(--out)}
+  .ico.inc{background:rgba(52,211,153,.14);color:var(--in)}
+  .ico.bank{background:rgba(125,211,252,.14);color:var(--accent)}
+
+  /* ---------- Forms ---------- */
+  .field{display:grid;gap:6px}
+  .field > span{font-size:12px;color:var(--muted);font-weight:500}
+  input,select,textarea{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;
+    padding:11px 12px;outline:none;transition:border-color .15s}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+  input[type=date],input[type=month]{color-scheme:dark}
+  textarea{resize:vertical;min-height:64px}
+  .btn{padding:11px 16px;border-radius:12px;font-weight:600;background:var(--surface-2);border:1px solid var(--line);transition:.15s}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#0b1220;border:none}
+  .btn.danger{color:var(--out);border-color:rgba(251,113,133,.35)}
+  .btn.sm{padding:7px 11px;font-size:13px;border-radius:10px}
+  .btn.block{width:100%}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:6px 12px;border-radius:999px;font-size:12px;background:var(--surface-2);border:1px solid var(--line)}
+  .chip.on{background:rgba(125,211,252,.15);border-color:var(--accent);color:var(--accent)}
+
+  /* ---------- Lists ---------- */
+  .list{display:grid}
+  .item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
+  .item:last-child{border-bottom:none}
+  .item .t{font-weight:600;font-size:14px}
+  .item .s{font-size:12px;color:var(--muted)}
+  .item.click{cursor:pointer;border-radius:10px}
+  .item.click:hover{background:var(--surface-2)}
+  .day-head{font-size:12px;color:var(--faint);margin:14px 4px 2px;font-weight:600;display:flex;justify-content:space-between}
+  .empty{color:var(--muted);text-align:center;padding:28px 10px;font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:9px 6px;text-align:right;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  th{font-weight:600;color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  .bar-track{height:6px;background:var(--surface-2);border-radius:6px;overflow:hidden;margin-top:6px}
+  .bar-fill{height:100%;border-radius:6px}
+
+  /* ---------- Bottom nav ---------- */
+  .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:40;height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+    padding-bottom:env(safe-area-inset-bottom);background:rgba(11,18,32,.9);backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center}
+  .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;color:var(--muted);
+    padding:8px 0;font-weight:600;letter-spacing:.03em;transition:color .15s}
+  .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .nav-btn.active{color:var(--accent)}
+  .nav-btn.active::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--accent);margin-top:-1px}
+
+  /* ---------- Drawer & dialogs ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(3,7,15,.6);z-index:50;opacity:0;pointer-events:none;transition:.25s}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(320px,86vw);z-index:51;background:var(--surface);
+    border-left:1px solid var(--line);transform:translateX(100%);transition:transform .28s ease;
+    padding:calc(env(safe-area-inset-top) + 22px) 18px 20px;display:flex;flex-direction:column;gap:6px}
+  .drawer.open{transform:none}
+  .drawer h3{font-family:var(--serif);font-weight:400;font-size:28px;margin-bottom:12px}
+  .drawer-item{display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:12px;text-align:left;font-weight:600}
+  .drawer-item:hover{background:var(--surface-2)}
+  .drawer-item small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+  .drawer .who{margin-top:auto;font-size:12px;color:var(--muted);padding:0 12px 6px}
+
+  dialog{margin:auto;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--text);
+    width:min(520px,94vw);max-height:90vh;padding:0}
+  dialog::backdrop{background:rgba(3,7,15,.7);backdrop-filter:blur(3px)}
+  .dlg-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 6px}
+  .dlg-head h3{font-family:var(--serif);font-weight:400;font-size:28px}
+  .dlg-body{padding:12px 20px 20px;display:grid;gap:14px}
+  .x{width:34px;height:34px;border-radius:10px;font-size:20px;color:var(--muted)}
+  .x:hover{background:var(--surface-2)}
+  .net-preview{background:var(--surface-2);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;font-size:13px}
+
+  /* ---------- Auth ---------- */
+  .auth{min-height:100vh;display:grid;place-items:center;padding:20px}
+  .auth .card{width:min(400px,100%);padding:24px}
+  .auth h1{font-family:var(--serif);font-weight:400;font-size:42px;line-height:1;text-align:center;margin-bottom:4px;
+    background:linear-gradient(100deg,#fff,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* ---------- Toast ---------- */
+  .toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 24px);transform:translateX(-50%) translateY(20px);
+    background:var(--surface-2);border:1px solid var(--line);padding:10px 16px;border-radius:12px;font-size:14px;
+    opacity:0;transition:.25s;z-index:100;pointer-events:none;max-width:90vw}
+  .toast.show{opacity:1;transform:translateX(-50%)}
+  .toast.err{border-color:var(--out)}
+
+  .chart-box{position:relative;height:260px}
+  .tally-result{padding:10px 12px;border-radius:12px;font-size:13px;font-weight:600}
+  .tally-result.ok{background:rgba(52,211,153,.12);color:var(--in)}
+  .tally-result.bad{background:rgba(251,113,133,.12);color:var(--out)}
+  .acct-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px}
+  .acct-row .full{grid-column:1/-1}
+  .tabs{display:flex;background:var(--surface-2);border-radius:12px;padding:4px}
+  .tabs button{flex:1;padding:8px;border-radius:9px;font-weight:600;font-size:13px;color:var(--muted)}
+  .tabs button.on{background:var(--surface);color:var(--text)}
+</style>
+</head>
+<body>
+
+<!-- ========================================================= -->
+<!--  CONFIG: paste your Supabase project URL and anon key here -->
+<!-- ========================================================= -->
+<script>
+  const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
+  const SUPABASE_ANON_KEY = 'YOUR-ANON-OR-PUBLISHABLE-KEY';
+</script>
+
+<!-- ---------- Auth screen ---------- -->
+<section id="auth" class="auth hidden">
+  <div class="card stack">
+    <h1><em>Ansal</em></h1>
+    <p class="label" style="text-align:center;margin-bottom:8px">Money Tracker</p>
+    <div id="configWarn" class="tally-result bad hidden">Add your Supabase URL and anon key at the top of index.html.</div>
+    <label class="field"><span>Email</span><input id="authEmail" type="email" autocomplete="email" /></label>
+    <label class="field"><span>Password</span><input id="authPass" type="password" autocomplete="current-password" /></label>
+    <button class="btn primary block" id="btnSignIn">Sign in</button>
+    <button class="btn block" id="btnSignUp">Create account</button>
+    <p id="authMsg" class="muted" style="font-size:13px;text-align:center"></p>
+  </div>
+</section>
+
+<!-- ---------- App ---------- -->
+<div id="app" class="hidden">
+  <header class="topbar">
+    <button class="icon-btn burger" id="btnMenu" aria-label="Menu"><div><span></span><span></span><span></span></div></button>
+  </header>
+
+  <!-- HOME -->
+  <section class="view" id="view-home">
+    <div class="hero">
+      <div class="eyebrow">Personal finance</div>
+      <h1><em>Ansal</em></h1>
+      <div class="sub">Money Tracker</div>
+    </div>
+    <div class="wrap">
+      <div class="actions">
+        <button class="action" data-open="expense"><div class="ico exp">−</div><b>Enter expense</b><small>Log a spend</small></button>
+        <button class="action" data-open="income"><div class="ico inc">+</div><b>Log income</b><small>Pay &amp; PAYG</small></button>
+        <button class="action" data-goto="tally"><div class="ico bank">⚖</div><b>Tally bank</b><small>Check balances</small></button>
+      </div>
+
+      <div class="section-title">This month</div>
+      <div class="grid-3" id="homeMonth"></div>
+
+      <div class="section-title">Account balances (recorded)</div>
+      <div class="card" id="homeAccounts"></div>
+
+      <div class="section-title">Recent activity</div>
+      <div class="card"><div class="list" id="homeRecent"></div></div>
+    </div>
+  </section>
+
+  <!-- CASHFLOW -->
+  <section class="view hidden" id="view-cashflow">
+    <div class="wrap">
+      <div class="page-head"><h2>Cashflow</h2><p>Inflow (net income) vs outflow (expenses)</p></div>
+      <div class="card stack">
+        <div class="chips" data-range-for="cf"></div>
+        <div class="grid-2">
+          <label class="field"><span>From</span><input type="date" id="cfFrom" /></label>
+          <label class="field"><span>To</span><input type="date" id="cfTo" /></label>
+        </div>
+        <button class="btn" id="cfMonthlyBtn">Show monthly breakdown</button>
+      </div>
+
+      <div class="grid-3" id="cfSummary" style="margin-top:12px"></div>
+      <div class="card" style="margin-top:12px"><div class="chart-box"><canvas id="cfChart"></canvas></div></div>
+      <div class="card hidden" id="cfTableCard" style="margin-top:12px"><div id="cfTable"></div></div>
+    </div>
+  </section>
+
+  <!-- EXPENSES -->
+  <section class="view hidden" id="view-expenses">
+    <div class="wrap">
+      <div class="page-head row between">
+        <div><h2>Expenses</h2><p id="expCount">—</p></div>
+        <button class="btn primary sm" data-open="expense">+ Add</button>
+      </div>
+      <div class="card stack">
+        <div class="grid-2">
+          <label class="field"><span>Month</span><input type="month" id="expMonth" /></label>
+          <label class="field"><span>Category</span><select id="expCat"></select></label>
+        </div>
+        <input id="expSearch" placeholder="Search description…" />
+        <div class="row between"><span class="label">Total</span><span class="big num out" id="expTotal">$0.00</span></div>
+      </div>
+      <div class="card" style="margin-top:12px"><div id="expList"></div></div>
+    </div>
+  </section>
+
+  <!-- ANALYTICS -->
+  <section class="view hidden" id="view-analytics">
+    <div class="wrap">
+      <div class="page-head"><h2>Analytics</h2><p>Where the money goes</p></div>
+      <div class="card stack">
+        <div class="chips" data-range-for="an"></div>
+        <div class="grid-2">
+          <label class="field"><span>From</span><input type="date" id="anFrom" /></label>
+          <label class="field"><span>To</span><input type="date" id="anTo" /></label>
+        </div>
+      </div>
+      <div class="grid-2" id="anKpis" style="margin-top:12px"></div>
+      <div class="section-title">Spending by category</div>
+      <div class="card"><div class="chart-box"><canvas id="anDonut"></canvas></div><div id="anCatTable" style="margin-top:14px"></div></div>
+      <div class="section-title">Monthly spending</div>
+      <div class="card"><div class="chart-box"><canvas id="anTrend"></canvas></div></div>
+      <div class="section-title">By payment type</div>
+      <div class="card"><div class="chart-box" style="height:220px"><canvas id="anPay"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- TALLY -->
+  <section class="view hidden" id="view-tally">
+    <div class="wrap">
+      <div class="page-head"><h2>Tally bank</h2><p>Compare what the app expects with your real balance</p></div>
+      <div class="stack" id="tallyList"></div>
+    </div>
+  </section>
+
+  <!-- Bottom navigation -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-view="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+    <button class="nav-btn" data-view="cashflow"><svg viewBox="0 0 24 24"><path d="M7 4v16M7 4l-3 3M7 4l3 3M17 20V4M17 20l-3-3M17 20l3-3"/></svg>Cashflow</button>
+    <button class="nav-btn" data-view="expenses"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Expenses</button>
+    <button class="nav-btn" data-view="analytics"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Analytics</button>
+  </nav>
+
+  <!-- Hamburger drawer -->
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer">
+    <h3>Settings</h3>
+    <button class="drawer-item" data-dlg="dlgAccounts">🏦 <span>Configure opening balance<small>Banks, cards &amp; starting balances</small></span></button>
+    <button class="drawer-item" data-dlg="dlgCategories">🏷️ <span>Configure categories<small>Expense &amp; income categories</small></span></button>
+    <button class="drawer-item" data-dlg="dlgData">⇅ <span>Export / import data<small>JSON backup &amp; restore</small></span></button>
+    <div class="who" id="whoami"></div>
+    <button class="drawer-item" id="btnSignOut" style="color:var(--out)">↩ <span>Sign out</span></button>
+  </aside>
+</div>
+
+<!-- ---------- Expense dialog ---------- -->
+<dialog id="dlgExpense">
+  <form method="dialog" id="formExpense">
+    <div class="dlg-head"><h3 id="expDlgTitle">Enter expense</h3><button type="button" class="x" data-close>×</button></div>
+    <div class="dlg-body">
+      <div class="grid-2">
+        <label class="field"><span>Date</span><input type="date" name="date" required /></label>
+        <label class="field"><span>Amount (AUD)</span><input type="number" name="amount" step="0.01" min="0.01" inputmode="decimal" required /></label>
+      </div>
+      <label class="field"><span>Payment type</span><select name="account_id" required></select></label>
+      <label class="field"><span>Expense category</span><select name="category_id" required></select></label>
+      <label class="field"><span>Description (optional)</span><textarea name="description" maxlength="300"></textarea></label>
+      <div class="row">
+        <button type="button" class="btn danger hidden" id="expDelete">Delete</button>
+        <button class="btn primary" style="flex:1" value="save">Save expense</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- ---------- Income dialog ---------- -->
+<dialog id="dlgIncome">
+  <form method="dialog" id="formIncome">
+    <div class="dlg-head"><h3 id="incDlgTitle">Log income</h3><button type="button" class="x" data-close>×</button></div>
+    <div class="dlg-body">
+      <label class="field"><span>Date</span><input type="date" name="date" required /></label>
+      <div class="grid-2">
+        <label class="field"><span>Gross amount</span><input type="number" name="gross_amount" step="0.01" min="0" inputmode="decimal" required /></label>
+        <label class="field"><span>PAYG withheld</span><input type="number" name="payg" step="0.01" min="0" inputmode="decimal" value="0" /></label>
+      </div>
+      <div class="net-preview"><span class="muted">Net credited to bank</span><b class="num in" id="incNet">$0.00</b></div>
+      <label class="field"><span>Bank account credited</span><select name="account_id" required></select></label>
+      <label class="field"><span>Income category</span><select name="category_id"></select></label>
+      <label class="field"><span>Description (optional)</span><textarea name="description" maxlength="300"></textarea></label>
+      <div class="row">
+        <button type="button" class="btn danger hidden" id="incDelete">Delete</button>
+        <button class="btn primary" style="flex:1" value="save">Save income</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- ---------- Opening balance dialog ---------- -->
+<dialog id="dlgAccounts">
+  <div class="dlg-head"><h3>Opening balance</h3><button class="x" data-close>×</button></div>
+  <div class="dlg-body">
+    <p class="muted" style="font-size:13px">Enter each account's balance <b>as at the date you start tracking</b>. Every income and expense dated on or after that date moves the balance from there. For credit cards, enter what you owe as a negative number.</p>
+    <div class="stack" id="acctList"></div>
+    <div class="section-title" style="margin:6px 0 0">Add an account</div>
+    <form class="acct-row" id="formAccount">
+      <label class="field full"><span>Name</span><input name="name" placeholder="e.g. ANZ Everyday" required /></label>
+      <label class="field"><span>Type</span><select name="kind"><option>Bank</option><option>Credit card</option><option>Cash</option><option>Other</option></select></label>
+      <label class="field"><span>Balance</span><input name="opening_balance" type="number" step="0.01" inputmode="decimal" required /></label>
+      <label class="field full"><span>Balance as at</span><input name="opening_date" type="date" required /></label>
+      <button class="btn primary full">Add account</button>
+    </form>
+  </div>
+</dialog>
+
+<!-- ---------- Categories dialog ---------- -->
+<dialog id="dlgCategories">
+  <div class="dlg-head"><h3>Categories</h3><button class="x" data-close>×</button></div>
+  <div class="dlg-body">
+    <div class="tabs"><button class="on" data-cattab="expense">Expense</button><button data-cattab="income">Income</button></div>
+    <form class="row" id="formCategory"><input name="name" placeholder="New category name" required /><button class="btn primary">Add</button></form>
+    <div class="list" id="catList"></div>
+  </div>
+</dialog>
+
+<!-- ---------- Export / import dialog ---------- -->
+<dialog id="dlgData">
+  <div class="dlg-head"><h3>Export / import</h3><button class="x" data-close>×</button></div>
+  <div class="dlg-body">
+    <div class="card stack">
+      <b>Export</b>
+      <p class="muted" style="font-size:13px">Download all accounts, categories, expenses, income and tallies as a JSON file.</p>
+      <button class="btn primary" id="btnExport">Download JSON backup</button>
+    </div>
+    <div class="card stack">
+      <b>Import</b>
+      <p class="muted" style="font-size:13px">Load a JSON backup exported from this app. Matching records are updated, new ones are added.</p>
+      <input type="file" id="importFile" accept="application/json,.json" />
+      <label class="row" style="font-size:13px"><input type="checkbox" id="importReplace" style="width:auto" /> Replace all my existing data first</label>
+      <button class="btn" id="btnImport">Import file</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   Ansal Money Tracker — app logic
+   ========================================================= */
+const $  = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const AUD = new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' });
+const fmt = n => AUD.format(Number(n) || 0);
+const todayISO = () => new Date().toLocaleDateString('en-CA');           // YYYY-MM-DD (local)
+const isoOf = d => d.toLocaleDateString('en-CA');
+const monthKey = d => d.slice(0, 7);
+const monthLabel = k => new Date(k + '-01T00:00:00').toLocaleDateString('en-AU', { month: 'short', year: '2-digit' });
+const dayLabel = d => new Date(d + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const sum = (arr, f) => arr.reduce((a, x) => a + f(x), 0);
+const round2 = n => Math.round(n * 100) / 100;
+
+const TABLES = ['accounts', 'categories', 'expenses', 'incomes', 'tallies'];
+const DEFAULT_CATS = {
+  expense: ['Groceries', 'Rent', 'Fuel & Transport', 'Utilities', 'Dining out', 'Shopping', 'Health', 'Entertainment', 'Subscriptions', 'Other'],
+  income:  ['Salary', 'Casual wages', 'Interest', 'Other income']
+};
+const PALETTE = ['#7dd3fc','#c4b5fd','#f3d38b','#34d399','#fb7185','#fdba74','#67e8f9','#a5b4fc','#f9a8d4','#bef264','#94a3b8'];
+
+let sb = null;
+let user = null;
+let started = false;
+const state = { accounts: [], categories: [], expenses: [], incomes: [], tallies: [] };
+const charts = {};
+let cfMonthly = false;
+let catTab = 'expense';
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function toast(msg, isErr = false) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.toggle('err', isErr);
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function fail(error, context) {
+  console.error(context, error);
+  toast((context ? context + ': ' : '') + (error?.message || error), true);
+}
+
+/* ---------- Lookups ---------- */
+const accById = id => state.accounts.find(a => a.id === id);
+const catById = id => state.categories.find(c => c.id === id);
+const accName = id => accById(id)?.name || 'Unassigned';
+const catName = id => catById(id)?.name || 'Uncategorised';
+const netOf = i => round2(i.gross_amount - i.payg);
+
+/* ---------- Auth ---------- */
+async function init() {
+  if (!/^https:\/\//.test(SUPABASE_URL) || SUPABASE_URL.includes('YOUR-PROJECT')) {
+    $('#auth').classList.remove('hidden');
+    $('#configWarn').classList.remove('hidden');
+    return;
+  }
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  sb.auth.onAuthStateChange((event, session) => {
+    // don't await Supabase calls inside this callback
+    setTimeout(() => {
+      if (session?.user && !started) start(session.user);
+      if (event === 'SIGNED_OUT') location.reload();
+    }, 0);
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) start(session.user);
+  else $('#auth').classList.remove('hidden');
+}
+
+$('#btnSignIn').onclick = async () => {
+  if (!sb) return;
+  $('#authMsg').textContent = 'Signing in…';
+  const { error } = await sb.auth.signInWithPassword({ email: $('#authEmail').value.trim(), password: $('#authPass').value });
+  $('#authMsg').textContent = error ? error.message : '';
+};
+$('#btnSignUp').onclick = async () => {
+  if (!sb) return;
+  $('#authMsg').textContent = 'Creating account…';
+  const { data, error } = await sb.auth.signUp({ email: $('#authEmail').value.trim(), password: $('#authPass').value,
+    options: { emailRedirectTo: location.origin } });
+  if (error) $('#authMsg').textContent = error.message;
+  else if (!data.session) $('#authMsg').textContent = 'Check your email to confirm your account, then sign in.';
+};
+$('#btnSignOut').onclick = () => sb.auth.signOut();
+
+async function start(u) {
+  started = true;
+  user = u;
+  $('#auth').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  $('#whoami').textContent = 'Signed in as ' + u.email;
+  try {
+    await loadAll();
+    if (!state.categories.length) await seedCategories();
+  } catch (e) { fail(e, 'Loading data'); }
+  setupRangeChips();
+  renderAll();
+}
+
+/* ---------- Data loading ---------- */
+async function fetchAll(table) {
+  const out = [];
+  const page = 1000;                       // Supabase returns max 1000 rows per request
+  for (let from = 0; ; from += page) {
+    const { data, error } = await sb.from(table).select('*').range(from, from + page - 1);
+    if (error) throw error;
+    out.push(...data);
+    if (data.length < page) break;
+  }
+  return out;
+}
+function normalise() {
+  state.accounts.forEach(a => a.opening_balance = Number(a.opening_balance));
+  state.expenses.forEach(e => e.amount = Number(e.amount));
+  state.incomes.forEach(i => { i.gross_amount = Number(i.gross_amount); i.payg = Number(i.payg || 0); });
+  state.tallies.forEach(t => { t.actual_balance = Number(t.actual_balance); t.expected_balance = Number(t.expected_balance); });
+  state.accounts.sort((a, b) => a.created_at.localeCompare(b.created_at));
+  state.categories.sort((a, b) => a.name.localeCompare(b.name));
+  const byDate = (a, b) => b.date.localeCompare(a.date) || (b.created_at || '').localeCompare(a.created_at || '');
+  state.expenses.sort(byDate); state.incomes.sort(byDate); state.tallies.sort(byDate);
+}
+async function loadAll() {
+  const results = await Promise.all(TABLES.map(fetchAll));
+  TABLES.forEach((t, i) => state[t] = results[i]);
+  normalise();
+}
+async function seedCategories() {
+  const rows = [
+    ...DEFAULT_CATS.expense.map(name => ({ name, type: 'expense' })),
+    ...DEFAULT_CATS.income.map(name => ({ name, type: 'income' }))
+  ];
+  const { data, error } = await sb.from('categories').insert(rows).select();
+  if (error) return fail(error, 'Creating default categories');
+  state.categories = data; normalise();
+}
+
+/* ---------- Navigation ---------- */
+let currentView = 'home';
+function showView(v) {
+  currentView = v;
+  $$('.view').forEach(s => s.classList.toggle('hidden', s.id !== 'view-' + v));
+  $$('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  window.scrollTo(0, 0);
+  renderView(v);
+}
+$$('.nav-btn').forEach(b => b.onclick = () => showView(b.dataset.view));
+document.addEventListener('click', e => {
+  const open = e.target.closest('[data-open]');
+  if (open) { open.dataset.open === 'expense' ? openExpense() : openIncome(); }
+  const go = e.target.closest('[data-goto]');
+  if (go) showView(go.dataset.goto);
+});
+
+function renderView(v) {
+  ({ home: renderHome, cashflow: renderCashflow, expenses: renderExpenses, analytics: renderAnalytics, tally: renderTally }[v])();
+}
+function renderAll() { renderView(currentView); }
+
+/* ---------- Drawer & dialogs ---------- */
+function toggleDrawer(open) {
+  $('#drawer').classList.toggle('open', open);
+  $('#scrim').classList.toggle('open', open);
+}
+$('#btnMenu').onclick = () => toggleDrawer(true);
+$('#scrim').onclick = () => toggleDrawer(false);
+$$('[data-dlg]').forEach(b => b.onclick = () => {
+  toggleDrawer(false);
+  const id = b.dataset.dlg;
+  if (id === 'dlgAccounts') renderAccountsDlg();
+  if (id === 'dlgCategories') renderCategoriesDlg();
+  $('#' + id).showModal();
+});
+$$('[data-close]').forEach(b => b.onclick = () => b.closest('dialog').close());
+
+function fillSelect(sel, items, placeholder, selected) {
+  sel.innerHTML = (placeholder ? `<option value="">${esc(placeholder)}</option>` : '') +
+    items.map(i => `<option value="${i.id}" ${i.id === selected ? 'selected' : ''}>${esc(i.label)}</option>`).join('');
+}
+const accountOptions = () => state.accounts.map(a => ({ id: a.id, label: `${a.name} · ${a.kind}` }));
+const catOptions = type => state.categories.filter(c => c.type === type).map(c => ({ id: c.id, label: c.name }));
+
+/* ---------- Expense form ---------- */
+let editingExpense = null;
+function openExpense(exp = null) {
+  if (!state.accounts.length) { toast('Add a bank / payment account first'); renderAccountsDlg(); $('#dlgAccounts').showModal(); return; }
+  editingExpense = exp;
+  const f = $('#formExpense');
+  f.reset();
+  $('#expDlgTitle').textContent = exp ? 'Edit expense' : 'Enter expense';
+  $('#expDelete').classList.toggle('hidden', !exp);
+  fillSelect(f.account_id, accountOptions(), 'Select payment type', exp?.account_id);
+  fillSelect(f.category_id, catOptions('expense'), 'Select category', exp?.category_id);
+  f.date.value = exp?.date || todayISO();
+  f.amount.value = exp?.amount ?? '';
+  f.description.value = exp?.description || '';
+  $('#dlgExpense').showModal();
+  if (!exp) setTimeout(() => f.amount.focus(), 50);
+}
+$('#formExpense').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  const row = {
+    date: f.date.value,
+    amount: round2(parseFloat(f.amount.value)),
+    account_id: f.account_id.value || null,
+    category_id: f.category_id.value || null,
+    description: f.description.value.trim() || null
+  };
+  const q = editingExpense
+    ? sb.from('expenses').update(row).eq('id', editingExpense.id).select().single()
+    : sb.from('expenses').insert(row).select().single();
+  const { data, error } = await q;
+  if (error) return fail(error, 'Saving expense');
+  if (editingExpense) Object.assign(editingExpense, data); else state.expenses.push(data);
+  normalise();
+  $('#dlgExpense').close();
+  toast(editingExpense ? 'Expense updated' : `Expense of ${fmt(row.amount)} saved`);
+  renderAll();
+});
+$('#expDelete').onclick = async () => {
+  if (!editingExpense || !confirm('Delete this expense?')) return;
+  const { error } = await sb.from('expenses').delete().eq('id', editingExpense.id);
+  if (error) return fail(error, 'Deleting');
+  state.expenses = state.expenses.filter(x => x.id !== editingExpense.id);
+  $('#dlgExpense').close(); toast('Expense deleted'); renderAll();
+};
+
+/* ---------- Income form ---------- */
+let editingIncome = null;
+function updateNetPreview() {
+  const f = $('#formIncome');
+  const net = (parseFloat(f.gross_amount.value) || 0) - (parseFloat(f.payg.value) || 0);
+  $('#incNet').textContent = fmt(net);
+}
+function openIncome(inc = null) {
+  if (!state.accounts.length) { toast('Add a bank account first'); renderAccountsDlg(); $('#dlgAccounts').showModal(); return; }
+  editingIncome = inc;
+  const f = $('#formIncome');
+  f.reset();
+  $('#incDlgTitle').textContent = inc ? 'Edit income' : 'Log income';
+  $('#incDelete').classList.toggle('hidden', !inc);
+  const banks = accountOptions();
+  fillSelect(f.account_id, banks, 'Select account', inc?.account_id);
+  fillSelect(f.category_id, catOptions('income'), 'No category', inc?.category_id);
+  f.date.value = inc?.date || todayISO();
+  f.gross_amount.value = inc?.gross_amount ?? '';
+  f.payg.value = inc?.payg ?? 0;
+  f.description.value = inc?.description || '';
+  updateNetPreview();
+  $('#dlgIncome').showModal();
+}
+$('#formIncome').addEventListener('input', updateNetPreview);
+$('#formIncome').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target;
+  const gross = round2(parseFloat(f.gross_amount.value) || 0);
+  const payg = round2(parseFloat(f.payg.value) || 0);
+  if (payg > gross) return toast('PAYG can’t be more than the gross amount', true);
+  const row = {
+    date: f.date.value, gross_amount: gross, payg,
+    account_id: f.account_id.value || null,
+    category_id: f.category_id.value || null,
+    description: f.description.value.trim() || null
+  };
+  const q = editingIncome
+    ? sb.from('incomes').update(row).eq('id', editingIncome.id).select().single()
+    : sb.from('incomes').insert(row).select().single();
+  const { data, error } = await q;
+  if (error) return fail(error, 'Saving income');
+  if (editingIncome) Object.assign(editingIncome, data); else state.incomes.push(data);
+  normalise();
+  $('#dlgIncome').close();
+  toast(`Income saved · ${fmt(gross - payg)} net`);
+  renderAll();
+});
+$('#incDelete').onclick = async () => {
+  if (!editingIncome || !confirm('Delete this income entry?')) return;
+  const { error } = await sb.from('incomes').delete().eq('id', editingIncome.id);
+  if (error) return fail(error, 'Deleting');
+  state.incomes = state.incomes.filter(x => x.id !== editingIncome.id);
+  $('#dlgIncome').close(); toast('Income deleted'); renderAll();
+};
+
+/* ---------- Balances ---------- */
+function accountBreakdown(acc, asOf = todayISO()) {
+  const inRange = x => x.account_id === acc.id && x.date >= acc.opening_date && x.date <= asOf;
+  const inc = round2(sum(state.incomes.filter(inRange), netOf));
+  const exp = round2(sum(state.expenses.filter(inRange), e => e.amount));
+  return { opening: acc.opening_balance, inc, exp, expected: round2(acc.opening_balance + inc - exp) };
+}
+
+/* ---------- HOME ---------- */
+function renderHome() {
+  const mk = monthKey(todayISO());
+  const mInc = sum(state.incomes.filter(i => monthKey(i.date) === mk), netOf);
+  const mExp = sum(state.expenses.filter(e => monthKey(e.date) === mk), e => e.amount);
+  $('#homeMonth').innerHTML = `
+    <div class="card"><div class="label">Inflow</div><div class="big num in">${fmt(mInc)}</div></div>
+    <div class="card"><div class="label">Outflow</div><div class="big num out">${fmt(mExp)}</div></div>
+    <div class="card span-all"><div class="label">Net</div><div class="big num ${mInc - mExp >= 0 ? 'in' : 'out'}">${fmt(mInc - mExp)}</div></div>`;
+
+  if (!state.accounts.length) {
+    $('#homeAccounts').innerHTML = `<div class="empty">No accounts yet.<br><br><button class="btn primary sm" onclick="renderAccountsDlg();$('#dlgAccounts').showModal()">Set up opening balance</button></div>`;
+  } else {
+    const rows = state.accounts.map(a => ({ a, b: accountBreakdown(a).expected }));
+    $('#homeAccounts').innerHTML = rows.map(({ a, b }) =>
+      `<div class="item"><div><div class="t">${esc(a.name)}</div><div class="s">${esc(a.kind)}</div></div><div class="num t ${b < 0 ? 'out' : ''}">${fmt(b)}</div></div>`).join('') +
+      `<div class="item"><div class="label">Total</div><div class="num big">${fmt(sum(rows, r => r.b))}</div></div>`;
+  }
+
+  const recent = [
+    ...state.expenses.map(e => ({ ...e, _t: 'exp' })),
+    ...state.incomes.map(i => ({ ...i, _t: 'inc' }))
+  ].sort((a, b) => b.date.localeCompare(a.date) || (b.created_at || '').localeCompare(a.created_at || '')).slice(0, 8);
+  $('#homeRecent').innerHTML = recent.length ? recent.map(r => r._t === 'exp'
+    ? `<div class="item click" data-edit-exp="${r.id}"><div><div class="t">${esc(catName(r.category_id))}</div><div class="s">${dayLabel(r.date)} · ${esc(accName(r.account_id))}${r.description ? ' · ' + esc(r.description) : ''}</div></div><div class="num t out">−${fmt(r.amount)}</div></div>`
+    : `<div class="item click" data-edit-inc="${r.id}"><div><div class="t">${esc(r.category_id ? catName(r.category_id) : 'Income')}</div><div class="s">${dayLabel(r.date)} · ${esc(accName(r.account_id))}${r.payg ? ' · PAYG ' + fmt(r.payg) : ''}</div></div><div class="num t in">+${fmt(netOf(r))}</div></div>`
+  ).join('') : `<div class="empty">Nothing logged yet — add your first expense or income above.</div>`;
+}
+document.addEventListener('click', e => {
+  const ee = e.target.closest('[data-edit-exp]');
+  if (ee) openExpense(state.expenses.find(x => x.id === ee.dataset.editExp));
+  const ei = e.target.closest('[data-edit-inc]');
+  if (ei) openIncome(state.incomes.find(x => x.id === ei.dataset.editInc));
+});
+
+/* ---------- Date range presets ---------- */
+function presetRange(name) {
+  const now = new Date(); const t = todayISO();
+  const y = now.getFullYear(), m = now.getMonth();
+  switch (name) {
+    case 'This month': return [isoOf(new Date(y, m, 1)), t];
+    case 'Last month': return [isoOf(new Date(y, m - 1, 1)), isoOf(new Date(y, m, 0))];
+    case '3 months':   return [isoOf(new Date(y, m - 2, 1)), t];
+    case '6 months':   return [isoOf(new Date(y, m - 5, 1)), t];
+    case 'This FY':    return [isoOf(new Date(m >= 6 ? y : y - 1, 6, 1)), t];   // Australian FY: 1 Jul – 30 Jun
+    case 'All time': {
+      const dates = [...state.expenses, ...state.incomes].map(x => x.date).sort();
+      return [dates[0] || t, t];
+    }
+  }
+}
+const PRESETS = ['This month', 'Last month', '3 months', '6 months', 'This FY', 'All time'];
+function setupRangeChips() {
+  $$('[data-range-for]').forEach(box => {
+    const p = box.dataset.rangeFor;
+    box.innerHTML = PRESETS.map(n => `<button class="chip" data-preset="${n}">${n}</button>`).join('');
+    box.onclick = e => {
+      const b = e.target.closest('[data-preset]'); if (!b) return;
+      const [f, t] = presetRange(b.dataset.preset);
+      $('#' + p + 'From').value = f; $('#' + p + 'To').value = t;
+      $$(`[data-range-for="${p}"] .chip`).forEach(c => c.classList.toggle('on', c === b));
+      p === 'cf' ? renderCashflow() : renderAnalytics();
+    };
+    const [f, t] = presetRange(p === 'cf' ? 'This month' : '3 months');
+    $('#' + p + 'From').value = f; $('#' + p + 'To').value = t;
+    box.querySelector(`[data-preset="${p === 'cf' ? 'This month' : '3 months'}"]`).classList.add('on');
+    ['From', 'To'].forEach(s => $('#' + p + s).onchange = () => {
+      $$(`[data-range-for="${p}"] .chip`).forEach(c => c.classList.remove('on'));
+      p === 'cf' ? renderCashflow() : renderAnalytics();
+    });
+  });
+}
+function monthsBetween(from, to) {
+  const out = []; let [y, m] = from.slice(0, 7).split('-').map(Number);
+  const end = to.slice(0, 7);
+  while (true) {
+    const k = `${y}-${String(m).padStart(2, '0')}`;
+    out.push(k); if (k >= end) break;
+    m++; if (m > 12) { m = 1; y++; }
+    if (out.length > 240) break;
+  }
+  return out;
+}
+
+/* ---------- Charts ---------- */
+Chart.defaults.color = '#8b97ae';
+Chart.defaults.borderColor = '#25314b';
+Chart.defaults.font.family = "'Manrope', system-ui, sans-serif";
+function drawChart(id, config) {
+  charts[id]?.destroy();
+  charts[id] = new Chart($('#' + id), config);
+}
+const moneyTicks = { callback: v => '$' + Number(v).toLocaleString('en-AU') };
+const moneyTooltip = { callbacks: { label: c => `${c.dataset.label || c.label}: ${fmt(c.parsed.y ?? c.parsed)}` } };
+
+/* ---------- CASHFLOW ---------- */
+$('#cfMonthlyBtn').onclick = () => { cfMonthly = !cfMonthly; renderCashflow(); };
+function renderCashflow() {
+  const from = $('#cfFrom').value, to = $('#cfTo').value;
+  if (!from || !to) return;
+  const inR = x => x.date >= from && x.date <= to;
+  const incs = state.incomes.filter(inR), exps = state.expenses.filter(inR);
+  const inflow = sum(incs, netOf), outflow = sum(exps, e => e.amount), gross = sum(incs, i => i.gross_amount), payg = sum(incs, i => i.payg);
+  const net = inflow - outflow;
+  $('#cfSummary').innerHTML = `
+    <div class="card"><div class="label">Inflow</div><div class="big num in">${fmt(inflow)}</div><div class="s muted" style="font-size:11px">Gross ${fmt(gross)} · PAYG ${fmt(payg)}</div></div>
+    <div class="card"><div class="label">Outflow</div><div class="big num out">${fmt(outflow)}</div><div class="s muted" style="font-size:11px">${exps.length} expenses</div></div>
+    <div class="card span-all"><div class="label">Net</div><div class="big num ${net >= 0 ? 'in' : 'out'}">${fmt(net)}</div><div class="s muted" style="font-size:11px">${inflow ? Math.round(net / inflow * 100) + '% saved' : '—'}</div></div>`;
+
+  $('#cfMonthlyBtn').textContent = cfMonthly ? 'Show total for range' : 'Show monthly breakdown';
+  $('#cfTableCard').classList.toggle('hidden', !cfMonthly);
+
+  if (!cfMonthly) {
+    drawChart('cfChart', {
+      type: 'bar',
+      data: { labels: ['Inflow', 'Outflow', 'Net'], datasets: [{ data: [inflow, outflow, net],
+        backgroundColor: ['#34d399', '#fb7185', net >= 0 ? '#7dd3fc' : '#fdba74'], borderRadius: 10, maxBarThickness: 80 }] },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: moneyTooltip }, scales: { y: { ticks: moneyTicks } } }
+    });
+    return;
+  }
+
+  const months = monthsBetween(from, to);
+  const rows = months.map(k => {
+    const i = sum(incs.filter(x => monthKey(x.date) === k), netOf);
+    const o = sum(exps.filter(x => monthKey(x.date) === k), e => e.amount);
+    return { k, i, o, n: i - o };
+  });
+  let running = 0;
+  $('#cfTable').innerHTML = `<table><thead><tr><th>Month</th><th>In</th><th>Out</th><th>Net</th><th>Cumulative</th></tr></thead><tbody>${
+    rows.map(r => { running += r.n; return `<tr><td>${monthLabel(r.k)}</td><td class="num in">${fmt(r.i)}</td><td class="num out">${fmt(r.o)}</td><td class="num ${r.n >= 0 ? 'in' : 'out'}">${fmt(r.n)}</td><td class="num">${fmt(running)}</td></tr>`; }).join('')
+  }</tbody></table>`;
+  drawChart('cfChart', {
+    type: 'bar',
+    data: { labels: rows.map(r => monthLabel(r.k)), datasets: [
+      { label: 'Inflow', data: rows.map(r => r.i), backgroundColor: '#34d399', borderRadius: 6 },
+      { label: 'Outflow', data: rows.map(r => r.o), backgroundColor: '#fb7185', borderRadius: 6 },
+      { label: 'Net', type: 'line', data: rows.map(r => r.n), borderColor: '#7dd3fc', backgroundColor: '#7dd3fc', tension: .3, pointRadius: 3 }
+    ] },
+    options: { maintainAspectRatio: false, plugins: { tooltip: moneyTooltip, legend: { labels: { boxWidth: 10, boxHeight: 10 } } }, scales: { y: { ticks: moneyTicks } } }
+  });
+}
+
+/* ---------- EXPENSES ---------- */
+$('#expMonth').value = monthKey(todayISO());
+['expMonth', 'expCat', 'expSearch'].forEach(id => $('#' + id).addEventListener('input', renderExpenses));
+function renderExpenses() {
+  const cur = $('#expCat').value;
+  fillSelect($('#expCat'), catOptions('expense'), 'All categories', cur);
+  const m = $('#expMonth').value, c = $('#expCat').value, q = $('#expSearch').value.trim().toLowerCase();
+  const list = state.expenses.filter(e =>
+    (!m || monthKey(e.date) === m) && (!c || e.category_id === c) &&
+    (!q || (e.description || '').toLowerCase().includes(q) || catName(e.category_id).toLowerCase().includes(q)));
+  $('#expTotal').textContent = fmt(sum(list, e => e.amount));
+  $('#expCount').textContent = `${list.length} expense${list.length === 1 ? '' : 's'}${m ? ' in ' + new Date(m + '-01T00:00:00').toLocaleDateString('en-AU', { month: 'long', year: 'numeric' }) : ''}`;
+  if (!list.length) { $('#expList').innerHTML = `<div class="empty">No expenses match.</div>`; return; }
+  const groups = {};
+  list.forEach(e => (groups[e.date] ||= []).push(e));
+  $('#expList').innerHTML = Object.keys(groups).sort().reverse().map(d => `
+    <div class="day-head"><span>${dayLabel(d)}</span><span class="num">${fmt(sum(groups[d], e => e.amount))}</span></div>
+    ${groups[d].map(e => `<div class="item click" data-edit-exp="${e.id}">
+      <div><div class="t">${esc(catName(e.category_id))}</div><div class="s">${esc(accName(e.account_id))}${e.description ? ' · ' + esc(e.description) : ''}</div></div>
+      <div class="num t out">${fmt(e.amount)}</div></div>`).join('')}`).join('');
+}
+
+/* ---------- ANALYTICS ---------- */
+function renderAnalytics() {
+  const from = $('#anFrom').value, to = $('#anTo').value;
+  if (!from || !to) return;
+  const inR = x => x.date >= from && x.date <= to;
+  const exps = state.expenses.filter(inR), incs = state.incomes.filter(inR);
+  const total = sum(exps, e => e.amount), inflow = sum(incs, netOf);
+  const days = Math.max(1, Math.round((new Date(to) - new Date(from)) / 864e5) + 1);
+
+  const byCat = {};
+  exps.forEach(e => byCat[catName(e.category_id)] = (byCat[catName(e.category_id)] || 0) + e.amount);
+  const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const top = cats[0];
+
+  $('#anKpis').innerHTML = `
+    <div class="card"><div class="label">Total spent</div><div class="big num out">${fmt(total)}</div></div>
+    <div class="card"><div class="label">Avg per day</div><div class="big num">${fmt(total / days)}</div></div>
+    <div class="card"><div class="label">Top category</div><div class="big" style="font-size:18px">${top ? esc(top[0]) : '—'}</div><div class="muted num" style="font-size:12px">${top ? fmt(top[1]) : ''}</div></div>
+    <div class="card"><div class="label">Savings rate</div><div class="big num ${inflow - total >= 0 ? 'in' : 'out'}">${inflow ? Math.round((inflow - total) / inflow * 100) + '%' : '—'}</div></div>`;
+
+  drawChart('anDonut', {
+    type: 'doughnut',
+    data: { labels: cats.map(c => c[0]), datasets: [{ data: cats.map(c => round2(c[1])), backgroundColor: cats.map((_, i) => PALETTE[i % PALETTE.length]), borderColor: '#121a2b', borderWidth: 3 }] },
+    options: { maintainAspectRatio: false, cutout: '64%', plugins: { legend: { position: 'right', labels: { boxWidth: 10, boxHeight: 10 } },
+      tooltip: { callbacks: { label: c => `${c.label}: ${fmt(c.parsed)} (${total ? Math.round(c.parsed / total * 100) : 0}%)` } } } }
+  });
+  $('#anCatTable').innerHTML = cats.length ? cats.map(([n, v], i) => `
+    <div style="margin-bottom:10px"><div class="row between" style="font-size:13px"><span>${esc(n)}</span><span class="num">${fmt(v)} <span class="muted">· ${Math.round(v / total * 100)}%</span></span></div>
+    <div class="bar-track"><div class="bar-fill" style="width:${v / cats[0][1] * 100}%;background:${PALETTE[i % PALETTE.length]}"></div></div></div>`).join('')
+    : `<div class="empty">No expenses in this range.</div>`;
+
+  const months = monthsBetween(from, to);
+  drawChart('anTrend', {
+    type: 'line',
+    data: { labels: months.map(monthLabel), datasets: [{ label: 'Spent', data: months.map(k => round2(sum(exps.filter(e => monthKey(e.date) === k), e => e.amount))),
+      borderColor: '#fb7185', backgroundColor: 'rgba(251,113,133,.15)', fill: true, tension: .35, pointRadius: 3 }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: moneyTooltip }, scales: { y: { ticks: moneyTicks, beginAtZero: true } } }
+  });
+
+  const byAcc = {};
+  exps.forEach(e => byAcc[accName(e.account_id)] = (byAcc[accName(e.account_id)] || 0) + e.amount);
+  const accs = Object.entries(byAcc).sort((a, b) => b[1] - a[1]);
+  drawChart('anPay', {
+    type: 'bar',
+    data: { labels: accs.map(a => a[0]), datasets: [{ label: 'Spent', data: accs.map(a => round2(a[1])), backgroundColor: '#c4b5fd', borderRadius: 8 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => fmt(c.parsed.x) } } }, scales: { x: { ticks: moneyTicks } } }
+  });
+}
+
+/* ---------- TALLY ---------- */
+function renderTally() {
+  if (!state.accounts.length) {
+    $('#tallyList').innerHTML = `<div class="card empty">Add your accounts and opening balances first.<br><br><button class="btn primary sm" onclick="renderAccountsDlg();$('#dlgAccounts').showModal()">Configure opening balance</button></div>`;
+    return;
+  }
+  $('#tallyList').innerHTML = state.accounts.map(a => {
+    const b = accountBreakdown(a);
+    const last = state.tallies.find(t => t.account_id === a.id);
+    const lastDiff = last ? round2(last.actual_balance - last.expected_balance) : null;
+    return `<div class="card stack" data-acct="${a.id}">
+      <div class="row between"><div><div class="t" style="font-weight:700;font-size:16px">${esc(a.name)}</div><div class="s muted" style="font-size:12px">${esc(a.kind)}</div></div>
+        ${last ? `<span class="chip">Last tallied ${new Date(last.date + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} · ${lastDiff === 0 ? '✓' : fmt(lastDiff)}</span>` : ''}</div>
+      <table>
+        <tr><td class="muted">Opening (as at ${new Date(a.opening_date + 'T00:00:00').toLocaleDateString('en-AU')})</td><td class="num">${fmt(b.opening)}</td></tr>
+        <tr><td class="muted">+ Income credited</td><td class="num in">${fmt(b.inc)}</td></tr>
+        <tr><td class="muted">− Expenses paid</td><td class="num out">${fmt(b.exp)}</td></tr>
+        <tr><td><b>Expected balance</b></td><td class="num"><b>${fmt(b.expected)}</b></td></tr>
+      </table>
+      <div class="row"><input type="number" step="0.01" inputmode="decimal" placeholder="Actual balance in your bank app" data-actual /><button class="btn primary" data-tally>Tally</button></div>
+      <div data-result></div>
+    </div>`;
+  }).join('');
+}
+$('#tallyList').addEventListener('click', async e => {
+  const btn = e.target.closest('[data-tally]'); if (!btn) return;
+  const card = btn.closest('[data-acct]');
+  const acc = accById(card.dataset.acct);
+  const val = card.querySelector('[data-actual]').value;
+  if (val === '') return toast('Enter the actual balance first', true);
+  const actual = round2(parseFloat(val));
+  const expected = accountBreakdown(acc).expected;
+  const diff = round2(actual - expected);
+  const res = card.querySelector('[data-result]');
+  res.innerHTML = diff === 0
+    ? `<div class="tally-result ok">✓ Balanced — your records match the bank.</div>`
+    : `<div class="tally-result bad">Out by ${fmt(Math.abs(diff))}. ${diff > 0
+        ? 'The bank has more than recorded — check for unlogged income or a duplicated expense.'
+        : 'The bank has less than recorded — check for unlogged expenses or fees.'}</div>`;
+  const { data, error } = await sb.from('tallies').insert({ account_id: acc.id, date: todayISO(), actual_balance: actual, expected_balance: expected }).select().single();
+  if (error) return fail(error, 'Saving tally');
+  state.tallies.unshift(data); normalise();
+});
+
+/* ---------- Opening balance (accounts) dialog ---------- */
+function renderAccountsDlg() {
+  const f = $('#formAccount');
+  if (!f.opening_date.value) f.opening_date.value = todayISO();
+  $('#acctList').innerHTML = state.accounts.length ? state.accounts.map(a => `
+    <form class="acct-row" data-acct-edit="${a.id}">
+      <label class="field full"><span>Name</span><input name="name" value="${esc(a.name)}" required /></label>
+      <label class="field"><span>Type</span><select name="kind">${['Bank', 'Credit card', 'Cash', 'Other'].map(k => `<option ${k === a.kind ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
+      <label class="field"><span>Balance</span><input name="opening_balance" type="number" step="0.01" value="${a.opening_balance}" required /></label>
+      <label class="field full"><span>Balance as at</span><input name="opening_date" type="date" value="${a.opening_date}" required /></label>
+      <button type="button" class="btn danger sm" data-acct-del="${a.id}">Delete</button>
+      <button class="btn sm">Save changes</button>
+    </form>`).join('') : `<div class="empty" style="padding:10px">No accounts yet.</div>`;
+}
+const accountRow = f => ({ name: f.name.value.trim(), kind: f.kind.value, opening_balance: round2(parseFloat(f.opening_balance.value) || 0), opening_date: f.opening_date.value });
+$('#formAccount').addEventListener('submit', async e => {
+  e.preventDefault();
+  const { data, error } = await sb.from('accounts').insert(accountRow(e.target)).select().single();
+  if (error) return fail(error, 'Adding account');
+  state.accounts.push(data); normalise();
+  e.target.reset(); renderAccountsDlg(); renderAll(); toast('Account added');
+});
+$('#acctList').addEventListener('submit', async e => {
+  e.preventDefault();
+  const id = e.target.dataset.acctEdit;
+  const { data, error } = await sb.from('accounts').update(accountRow(e.target)).eq('id', id).select().single();
+  if (error) return fail(error, 'Updating account');
+  Object.assign(accById(id), data); normalise(); renderAll(); toast('Account updated');
+});
+$('#acctList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-acct-del]'); if (!b) return;
+  if (!confirm('Delete this account? Its expenses and income stay, but become "Unassigned".')) return;
+  const { error } = await sb.from('accounts').delete().eq('id', b.dataset.acctDel);
+  if (error) return fail(error, 'Deleting account');
+  state.accounts = state.accounts.filter(a => a.id !== b.dataset.acctDel);
+  state.expenses.concat(state.incomes).forEach(x => { if (x.account_id === b.dataset.acctDel) x.account_id = null; });
+  state.tallies = state.tallies.filter(t => t.account_id !== b.dataset.acctDel);
+  renderAccountsDlg(); renderAll(); toast('Account deleted');
+});
+
+/* ---------- Categories dialog ---------- */
+$$('[data-cattab]').forEach(b => b.onclick = () => { catTab = b.dataset.cattab; renderCategoriesDlg(); });
+function renderCategoriesDlg() {
+  $$('[data-cattab]').forEach(b => b.classList.toggle('on', b.dataset.cattab === catTab));
+  const list = state.categories.filter(c => c.type === catTab);
+  const used = id => state.expenses.filter(e => e.category_id === id).length + state.incomes.filter(i => i.category_id === id).length;
+  $('#catList').innerHTML = list.length ? list.map(c => `
+    <div class="item"><div><div class="t">${esc(c.name)}</div><div class="s">${used(c.id)} entries</div></div>
+    <div class="row"><button class="btn sm" data-cat-ren="${c.id}">Rename</button><button class="btn sm danger" data-cat-del="${c.id}">Delete</button></div></div>`).join('')
+    : `<div class="empty">No ${catTab} categories.</div>`;
+}
+$('#formCategory').addEventListener('submit', async e => {
+  e.preventDefault();
+  const name = e.target.name.value.trim(); if (!name) return;
+  const { data, error } = await sb.from('categories').insert({ name, type: catTab }).select().single();
+  if (error) return fail(error, error.code === '23505' ? 'Already exists' : 'Adding category');
+  state.categories.push(data); normalise(); e.target.reset(); renderCategoriesDlg(); toast('Category added');
+});
+$('#catList').addEventListener('click', async e => {
+  const del = e.target.closest('[data-cat-del]'), ren = e.target.closest('[data-cat-ren]');
+  if (del) {
+    if (!confirm('Delete this category? Existing entries become "Uncategorised".')) return;
+    const id = del.dataset.catDel;
+    const { error } = await sb.from('categories').delete().eq('id', id);
+    if (error) return fail(error, 'Deleting category');
+    state.categories = state.categories.filter(c => c.id !== id);
+    state.expenses.concat(state.incomes).forEach(x => { if (x.category_id === id) x.category_id = null; });
+    renderCategoriesDlg(); renderAll();
+  }
+  if (ren) {
+    const c = catById(ren.dataset.catRen);
+    const name = prompt('New name', c.name)?.trim(); if (!name || name === c.name) return;
+    const { error } = await sb.from('categories').update({ name }).eq('id', c.id);
+    if (error) return fail(error, 'Renaming');
+    c.name = name; normalise(); renderCategoriesDlg(); renderAll();
+  }
+});
+
+/* ---------- Export / import ---------- */
+$('#btnExport').onclick = () => {
+  const strip = rows => rows.map(({ user_id, ...r }) => r);
+  const payload = { app: 'ansal-money-tracker', version: 1, exported_at: new Date().toISOString() };
+  TABLES.forEach(t => payload[t] = strip(state[t]));
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `ansal-money-${todayISO()}.json` });
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('Backup downloaded');
+};
+$('#btnImport').onclick = async () => {
+  const file = $('#importFile').files[0];
+  if (!file) return toast('Choose a JSON file first', true);
+  let json;
+  try { json = JSON.parse(await file.text()); } catch { return toast('That file isn’t valid JSON', true); }
+  if (!TABLES.some(t => Array.isArray(json[t]))) return toast('No Ansal data found in this file', true);
+  const replace = $('#importReplace').checked;
+  if (replace && !confirm('This permanently deletes all your current data before importing. Continue?')) return;
+  try {
+    if (replace) {
+      for (const t of [...TABLES].reverse()) {
+        const { error } = await sb.from(t).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (error) throw error;
+      }
+    }
+    // parents first so foreign keys resolve
+    for (const t of TABLES) {
+      const rows = (json[t] || []).map(({ user_id, ...r }) => r);
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error } = await sb.from(t).upsert(rows.slice(i, i + 500), { onConflict: 'id' });
+        if (error) throw error;
+      }
+    }
+    await loadAll();
+    $('#dlgData').close(); renderAll();
+    toast(`Imported ${json.expenses?.length || 0} expenses, ${json.incomes?.length || 0} income entries`);
+  } catch (err) { fail(err, 'Import failed'); }
+};
+
+init();
+</script>
+</body>
+</html>
